@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar-SA" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تمكين - الرؤى والإحصائيات</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/insights.css">
+    <link rel="stylesheet" href="css/modals.css">
+
+    <meta name="theme-color" content="#008080">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registered!'))
+        .catch(err => console.log('Service Worker failed:', err));
+    });
+  }
+</script>
+
+</head>
+<body>
+    <div class="app-wrapper">
+        <header class="header">
+            <div class="header-top" style="padding: 16px 16px 0;">
+                <div class="app-title">
+                    <span class="dot" style="background: var(--s-review);"></span>
+                    الرؤى والحفظ
+                </div>
+                <button class="filter-btn" onclick="window.location.href='index.html'">🏠 الرئيسية</button>
+            </div>
+            <div id="insights-summary" class="summary-box">
+                </div>
+        </header>
+
+        <main class="insights-container">
+            <nav class="tabs-nav">
+                <button class="tab-btn active" id="btn-index" onclick="switchTab('index-tab', this)">
+                    📖 فهرس المصحف
+                </button>
+                <button class="tab-btn" id="btn-plan" onclick="switchTab('plan-tab', this)">
+                    📅 خطة الحفظ
+                </button>
+            </nav>
+
+            <div id="index-tab" class="tab-content active">
+                <div class="index-header">
+                    <h3>فهرس المصحف الشريف</h3>
+                </div>
+                <div id="quran-index-container" class="quran-list">
+                    </div>
+            </div>
+
+            <div id="plan-tab" class="tab-content">
+                <div class="plan-header">
+                    <button class="add-plan-btn" onclick="openPlanSheet()">+ إضافة مسار حفظ جديد</button>
+                </div>
+
+                <div id="grand-vision-card" class="vision-card" style="display:none;">
+                    <div class="vision-title">الرؤية الختامية المتوقعة</div>
+                    <div id="final-finish-date" class="vision-date">-- / -- / ----</div>
+                    <div class="vision-meta">بناءً على سرعة إنجازك الحالية في كل المسارات</div>
+                </div>
+
+                <div id="active-tracks-container" class="tracks-list">
+                    </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="planSheet" class="sheet-overlay" onclick="closeSheetOnOverlay(event, 'planSheet')">
+        <div class="sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-title">تخطيط مسار حفظ جديد</div>
+            
+            <div class="form-group">
+                <label class="form-label">السورة الكريمة</label>
+                <select id="p_surah" class="form-input"></select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">معدل الإنجاز (صفحة / أسبوع)</label>
+                <input type="number" id="p_rate" class="form-input" placeholder="مثلاً: 6" step="0.5">
+            </div>
+
+           <link rel="stylesheet" href="css/flatpickr.min.css">
+
+<div class="form-group">
+    <label class="form-label">تاريخ البدء</label>
+    <input type="text" id="p_start" class="form-input custom-date-input" placeholder="اضغط لاختيار التاريخ">
+</div>
+
+            <button class="add-plan-btn" style="background: var(--s-new, #2da44e); margin-top: 15px; width: 100%;" onclick="saveNewPlanTrack()">
+                تثبيت المسار في الخطة
+            </button>
+            
+<script src="js/flatpickr.min.js"></script>
+<script src="js/quranData.js"></script>
+<script src="js/db.js"></script>
+<script src="js/modals.js"></script> 
+<script src="js/insights-data.js"></script>
+<script src="js/insights-ui.js"></script>
+<script src="js/insights-plan.js"></script> 
+<script src="js/insights-app.js"></script>
+</body>
+</html>
