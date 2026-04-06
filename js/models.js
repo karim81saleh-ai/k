@@ -21,7 +21,8 @@ const appState = {
   editingId: null
 };
 
-const STATUS_AR = { NEW: "جديد", TAWKEEN: "تمكين", SPACED: "متباعد", REVIEW: "مراجعة", WAIT: "انتظار", ARCHIVE: "مؤرشفة" };
+// تم تغيير ARCHIVE إلى OVERDUE (متجاوز)
+const STATUS_AR = { NEW: "جديد", TAWKEEN: "تمكين", SPACED: "متباعد", REVIEW: "مراجعة", WAIT: "انتظار", OVERDUE: "متجاوز" };
 const WIRD_SET = new Set(["NEW", "TAWKEEN", "SPACED", "REVIEW"]);
 
 /**
@@ -51,14 +52,14 @@ function resolveStatus(item, diff) {
     const days = (item.customPlan || "").split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
     if (days.includes(diff)) return "REVIEW";
     if (days.length > 0 && diff < Math.max(...days)) return "WAIT";
-    return "ARCHIVE";
+    return "OVERDUE"; // بدلاً من الأرشفة
   }
   
   if (diff === 0) return "NEW";
   if (diff >= 1 && diff <= 7) return "TAWKEEN";
   if ([10, 17, 30].includes(diff)) return "SPACED";
   if (diff < 30) return "WAIT";
-  return "ARCHIVE";
+  return "OVERDUE"; // بدلاً من الأرشفة
 }
 
 function getNextReviewDays(item, diff) {
@@ -87,16 +88,10 @@ function getNextReviewDays(item, diff) {
 async function loadData() {
   const actualToday = getLocalDateString();
   
-  /* منطق المزامنة:
-     إذا كان التاريخ الحالي في التطبيق يطابق "آخر يوم حقيقي" سجلناه، 
-     فهذا يعني أن المستخدم في وضع المتابعة الحية، لذا نقوم بتحديث التاريخ لليوم الجديد.
-     أما إذا كان مختلفاً، فهذا يعني أن المستخدم اختار تاريخاً يدوياً للمعاينة، فنترك التاريخ كما هو.
-  */
   if (appState.currentDateStr === lastKnownToday) {
       appState.currentDateStr = actualToday;
   }
   
-  // تحديث المرجع الزمني لليوم الحالي
   lastKnownToday = actualToday;
 
   const raw = await getItems();

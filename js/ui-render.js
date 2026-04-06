@@ -14,11 +14,14 @@ function renderTabs() {
   
   appState.items.forEach(i => {
     const isDone = appState.completedWirds.has(i.id);
+    
     if (WIRD_SET.has(i._status) && !isDone) {
       counts.wird++;
-    } else if (i._status === 'WAIT' && i.interval === 15 && !isDone) {
+    } else if (i.scheduleType === 'repeating' && !isDone) {
+      // أي محفوظ دوري ليس مطلوباً اليوم يذهب للمراجعة الدورية
       counts.periodic++;
-    } else {
+    } else if (i.scheduleType === 'default' && (i._status === 'WAIT' || i._status === 'OVERDUE') && !isDone) {
+      // المحفوظ العادي (في الانتظار أو المتجاوز) يذهب للاستراحة
       counts.REST++;
     }
   });
@@ -39,18 +42,15 @@ function renderList() {
   let filtered = [];
   const today = new Date();
 
-  // المنطق الثلاثي الجديد
+  // المنطق الثلاثي الجديد والمصحح
   if (appState.activeFilter === 'wird') {
     filtered = appState.items.filter(i => WIRD_SET.has(i._status) && !appState.completedWirds.has(i.id));
   } else if (appState.activeFilter === 'periodic') {
-    filtered = appState.items.filter(i => i._status === 'WAIT' && i.interval === 15 && !appState.completedWirds.has(i.id));
+    // إظهار المحفوظات ذات التكرار المستمر التي ليست في ورد اليوم
+    filtered = appState.items.filter(i => i.scheduleType === 'repeating' && !WIRD_SET.has(i._status) && !appState.completedWirds.has(i.id));
   } else if (appState.activeFilter === 'REST') {
-    filtered = appState.items.filter(i => {
-        const isDone = appState.completedWirds.has(i.id);
-        const isPeriodic = (i._status === 'WAIT' && i.interval === 15);
-        const isWird = WIRD_SET.has(i._status);
-        return isDone || (!isPeriodic && !isWird);
-    });
+    // إظهار المحفوظات العادية التي في فترة الانتظار أو تجاوزت 30 يوماً
+    filtered = appState.items.filter(i => i.scheduleType === 'default' && (i._status === 'WAIT' || i._status === 'OVERDUE') && !appState.completedWirds.has(i.id));
   }
 
   // الترتيب التنازلي (الأقرب للمراجعة أولاً)
@@ -60,6 +60,7 @@ function renderList() {
     ${filtered.map(item => {
       const isDone = appState.completedWirds.has(item.id);
       const isWird = WIRD_SET.has(item._status);
+      const isOverdue = item._status === 'OVERDUE';
       const hasNote = item.note && item.note.trim() !== '';
       
       // حساب الأيام منذ الإضافة
@@ -69,19 +70,25 @@ function renderList() {
       const sinceText = `<span style="opacity:0.7; font-size:0.85em;">(منذ ${diffDays} يوم)</span>`;
 
       let nextReviewText = '';
-      if (item._nextDays !== null && !isWird) {
+      if (item._nextDays !== null && !isWird && !isOverdue) {
         nextReviewText = `<span style="color:var(--accent); font-weight:700;">⏳ المراجعة بعد ${item._nextDays} يوم</span>`;
       } else if (item._nextDays !== null && isDone) {
         nextReviewText = `<span style="color:var(--s-new); font-weight:700;">✅ المراجعة بعد ${item._nextDays} يوم</span>`;
+      } else if (isOverdue) {
+        nextReviewText = `<span style="color:#d32f2f; font-weight:700;">⚠️ يتطلب مراجعة فورية</span>`;
       }
 
+      // تنسيق البطاقة لتصبح حمراء باهتة إذا تجاوزت 30 يوماً
+      const overdueStyle = isOverdue ? 'background-color: #ffebee; border: 1px solid #ffcdd2;' : '';
+      const badgeStyle = isOverdue ? 'background-color: #d32f2f; color: white;' : '';
+
       return `
-      <div class="item-card ${isDone ? 'completed' : ''}">
+      <div class="item-card ${isDone ? 'completed' : ''}" style="${overdueStyle}">
         ${hasNote ? '<div class="note-indicator"></div>' : ''}
         <div class="card-main" onclick="openEditSheet('${item.id}')">
           <div class="card-header">
             <div class="card-title">${item.content}</div>
-            <div class="status-badge badge-${item._status}">${STATUS_AR[item._status] || item._status}</div>
+            <div class="status-badge badge-${item._status}" style="${badgeStyle}">${STATUS_AR[item._status] || item._status}</div>
           </div>
           <div class="card-meta">
             <span>📅 ${item.date} ${isWird ? sinceText : ''}</span> 
