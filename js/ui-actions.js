@@ -18,7 +18,16 @@ async function toggleWird(checkbox, id) {
   
   const card = checkbox.closest('.item-card');
   card.classList.toggle('completed', checkbox.checked);
-  renderStats(); // Update counters
+  
+  // تطبيق تأثير الشطب والشفافية لحظياً على العنوان
+  const titleEl = card.querySelector('.card-title');
+  if (titleEl) {
+    titleEl.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
+    titleEl.style.opacity = checkbox.checked ? '0.6' : '1';
+  }
+  
+  // تحديث العدادات (هذه الدالة ستقوم بخصم صفحات الورد المكتمل من المطلوب اليوم)
+  renderStats(); 
 }
 
 function setFilter(f) {
