@@ -144,7 +144,10 @@ function renderItemCard(item) {
           <input type="checkbox" class="wird-checkbox" 
             ${isDone ? 'checked' : ''} 
             onchange="toggleWird(this, '${item.id}')">
-        ` : '<div style="width:24px;"></div>'}
+        ` : ''}
+        <button class="delete-btn" onclick="removeCard('${item.id}')" title="حذف" style="background:none; border:none; color:var(--s-late); cursor:pointer; padding:5px; margin-right:5px;">
+          <i class="fas fa-trash-can"></i>
+        </button>
       </div>
     </div>
   `;

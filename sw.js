@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quran-vibe-v1';
+const CACHE_NAME = 'quran-vibe-v2';
 const assetsToCache = [
   './',
   './index.html',
