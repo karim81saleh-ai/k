@@ -30,6 +30,9 @@ const WIRD_SET = new Set(["NEW", "TAWKEEN", "SPACED", "REVIEW"]);
  * مع استخدام Math.round لتفادي مشاكل التوقيت الصيفي (DST)
  */
 function getDiffDays(dateString) {
+  // حماية إضافية تمنع الانهيار إن كان التاريخ مفقوداً
+  if (!dateString) dateString = appState.currentDateStr;
+
   const [tYear, tMonth, tDay] = appState.currentDateStr.split('-').map(Number);
   const targetLocal = new Date(tYear, tMonth - 1, tDay);
   

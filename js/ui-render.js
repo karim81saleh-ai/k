@@ -23,7 +23,8 @@ function renderTabs() {
     else if (i.scheduleType === 'default' && (i._status === 'WAIT' || i._status === 'OVERDUE')) counts.REST++;
   });
 
-  const tabsContainer = document.getElementById("tabs");
+  // إضافة مرونة في جلب الحاوية لتفادي أخطاء المسميات
+  const tabsContainer = document.getElementById("tabs") || document.getElementById("comp-tabs");
   if (tabsContainer) {
     tabsContainer.innerHTML = `
       <button class="filter-btn ${appState.activeFilter === 'wird' ? 'active' : ''}" onclick="setFilter('wird')">
@@ -46,7 +47,8 @@ function renderApp() {
   renderStats();
   renderTabs();
   
-  const listDiv = document.getElementById("itemsList");
+  // إضافة مرونة في جلب الحاوية لتفادي التوقف المبكر (Return)
+  const listDiv = document.getElementById("itemsList") || document.getElementById("comp-list");
   if (!listDiv) return;
 
   if (appState.activeFilter === 'path') {
