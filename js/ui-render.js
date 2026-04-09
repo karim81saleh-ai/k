@@ -71,6 +71,7 @@ function renderApp() {
         <div style="font-size: 14px; margin-top: 8px; opacity: 0.8;">هذا القسم قيد الإنشاء حالياً لبرمجة خطط الحفظ.</div>
       </div>
     `;
+   renderPathTab(listDiv);
     return;
   }
 
