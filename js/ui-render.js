@@ -1,20 +1,29 @@
+// js/ui-render.js
+
+/**
+ * رسم شريط الإحصائيات العلوي
+ */
 function renderStats() {
   const total = appState.items.reduce((s, i) => s + (parseFloat(i.pages) || 0), 0);
-  // سيبقى هنا شرط الاستثناء لضمان أن المجموع المطلوب لليوم ينقص عند النقر
   const wirdItems = appState.items.filter(i => WIRD_SET.has(i._status) && !appState.completedWirds.has(i.id));
   const reqPages = wirdItems.reduce((s, i) => s + (parseFloat(i.pages) || 0), 0);
 
-  document.getElementById("statsBar").innerHTML = `
-    <div class="stat-chip">إجمالي: <span class="val">${total}</span> ص</div>
-    <div class="stat-chip">مطلوب اليوم: <span class="val" style="color:var(--s-late)">${reqPages}</span> ص</div>
-  `;
+  const statsBar = document.getElementById("statsBar");
+  if (statsBar) {
+    statsBar.innerHTML = `
+      <div class="stat-chip">إجمالي: <span class="val">${total}</span> ص</div>
+      <div class="stat-chip">مطلوب اليوم: <span class="val" style="color:var(--s-late)">${reqPages}</span> ص</div>
+    `;
+  }
 }
 
+/**
+ * رسم التبويبات (إضافة تبويب المسارات في المنتصف)
+ */
 function renderTabs() {
-  const counts = { wird: 0, periodic: 0, REST: 0 };
+  const counts = { wird: 0, path: 0, periodic: 0, REST: 0 };
   
   appState.items.forEach(i => {
-    // تمت إزالة شرط !isDone لكي تتطابق الأرقام في التبويبات مع العناصر المعروضة
     if (WIRD_SET.has(i._status)) {
       counts.wird++;
     } else if (i.scheduleType === 'repeating' && !WIRD_SET.has(i._status)) {
@@ -24,23 +33,49 @@ function renderTabs() {
     }
   });
 
-  const tabs = [
-    { id: 'wird', label: 'ورد اليوم' },
-    { id: 'periodic', label: 'المراجعة الدورية' },
-    { id: 'REST', label: 'استراحة' }
-  ];
-
-  document.getElementById("comp-tabs").innerHTML = tabs.map(t => {
-    const active = appState.activeFilter === t.id ? 'active' : '';
-    return `<button class="filter-btn ${active}" onclick="setFilter('${t.id}')">${t.label} (${counts[t.id]})</button>`;
-  }).join("");
+  const tabsContainer = document.getElementById("tabs");
+  if (tabsContainer) {
+    tabsContainer.innerHTML = `
+      <button class="filter-btn ${appState.activeFilter === 'wird' ? 'active' : ''}" onclick="setFilter('wird')">
+        ورد اليوم (${counts.wird})
+      </button>
+      <button class="filter-btn ${appState.activeFilter === 'path' ? 'active' : ''}" onclick="setFilter('path')">
+        المسارات
+      </button>
+      <button class="filter-btn ${appState.activeFilter === 'periodic' ? 'active' : ''}" onclick="setFilter('periodic')">
+        المراجعة (${counts.periodic})
+      </button>
+      <button class="filter-btn ${appState.activeFilter === 'REST' ? 'active' : ''}" onclick="setFilter('REST')">
+        الانتظار (${counts.REST})
+      </button>
+    `;
+  }
 }
 
-function renderList() {
-  let filtered = [];
-  const today = new Date();
+/**
+ * الدالة الرئيسية لرسم محتوى التطبيق
+ */
+function renderApp() {
+  renderStats();
+  renderTabs();
+  
+  const listDiv = document.getElementById("itemsList");
+  if (!listDiv) return;
 
-  // تمت إزالة شرط !appState.completedWirds.has(i.id) لكي لا يختفي الصف بعد إكماله
+  // حالة تبويب المسارات (قيد الإنشاء)
+  if (appState.activeFilter === 'path') {
+    listDiv.innerHTML = `
+      <div style="text-align:center; padding: 60px 20px; color: var(--text-3);">
+        <div style="font-size: 48px; margin-bottom: 15px; filter: grayscale(0.5);">🏗️</div>
+        <div style="font-size: 18px; font-weight: 700; color: var(--text-1);">قسم المسارات</div>
+        <div style="font-size: 14px; margin-top: 8px; opacity: 0.8;">هذا القسم قيد الإنشاء حالياً لبرمجة خطط الحفظ.</div>
+      </div>
+    `;
+    return;
+  }
+
+  // تصفية العناصر بناءً على التبويب النشط
+  let filtered = [];
   if (appState.activeFilter === 'wird') {
     filtered = appState.items.filter(i => WIRD_SET.has(i._status));
   } else if (appState.activeFilter === 'periodic') {
@@ -49,63 +84,68 @@ function renderList() {
     filtered = appState.items.filter(i => i.scheduleType === 'default' && (i._status === 'WAIT' || i._status === 'OVERDUE'));
   }
 
-  // الترتيب التنازلي (الأقرب للمراجعة أولاً)
-  filtered.sort((a, b) => (a._nextDays || 0) - (b._nextDays || 0));
+  if (filtered.length === 0) {
+    listDiv.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-3);">لا يوجد عناصر هنا</div>`;
+    return;
+  }
 
-  document.getElementById("comp-list").innerHTML = `<div class="items-list">
-    ${filtered.map(item => {
-      const isDone = appState.completedWirds.has(item.id);
-      const isWird = WIRD_SET.has(item._status);
-      const isOverdue = item._status === 'OVERDUE';
-      const hasNote = item.note && item.note.trim() !== '';
-      
-      // حساب الأيام منذ الإضافة
-      const addedDate = new Date(item.date);
-      const diffTime = Math.abs(today - addedDate);
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      const sinceText = `<span style="opacity:0.7; font-size:0.85em;">(منذ ${diffDays} يوم)</span>`;
+  // ترتيب العناصر (المتجاوز أولاً ثم الأحدث)
+  filtered.sort((a, b) => {
+    if (a._status === 'OVERDUE' && b._status !== 'OVERDUE') return -1;
+    if (a._status !== 'OVERDUE' && b._status === 'OVERDUE') return 1;
+    return new Date(b.date) - new Date(a.date);
+  });
 
-      let nextReviewText = '';
-      if (item._nextDays !== null && !isWird && !isOverdue) {
-        nextReviewText = `<span style="color:var(--accent); font-weight:700;">⏳ المراجعة بعد ${item._nextDays} يوم</span>`;
-      } else if (item._nextDays !== null && isDone) {
-        nextReviewText = `<span style="color:var(--s-new); font-weight:700;">✅ المراجعة بعد ${item._nextDays} يوم</span>`;
-      } else if (isOverdue) {
-        nextReviewText = `<span style="color:#d32f2f; font-weight:700;">⚠️ يتطلب مراجعة فورية</span>`;
-      }
-
-      // تنسيق البطاقة لتصبح حمراء باهتة إذا تجاوزت 30 يوماً
-      const overdueStyle = isOverdue ? 'background-color: #ffebee; border: 1px solid #ffcdd2;' : '';
-      const badgeStyle = isOverdue ? 'background-color: #d32f2f; color: white;' : '';
-      
-      // تنسيق الشطب والشفافية في حال كان الورد مكتملاً
-      const titleStyle = isDone ? 'text-decoration: line-through; opacity: 0.6;' : '';
-
-      return `
-      <div class="item-card ${isDone ? 'completed' : ''}" style="${overdueStyle}">
-        ${hasNote ? '<div class="note-indicator"></div>' : ''}
-        <div class="card-main" onclick="openEditSheet('${item.id}')">
-          <div class="card-header">
-            <div class="card-title" style="${titleStyle}">${item.content}</div>
-            <div class="status-badge badge-${item._status}" style="${badgeStyle}">${STATUS_AR[item._status] || item._status}</div>
-          </div>
-          <div class="card-meta">
-            <span>📅 ${item.date} ${isWird ? sinceText : ''}</span> 
-            <span>📄 ${item.pages} ص</span>
-            ${nextReviewText}
-          </div>
-        </div>
-        <div class="card-actions">
-          ${isWird ? `<input type="checkbox" class="wird-checkbox" ${isDone?'checked':''} onchange="toggleWird(this, '${item.id}')">` : '<div></div>'}
-          <button class="icon-btn" onclick="removeCard('${item.id}')"><i class="fas fa-trash"></i></button>
-        </div>
-      </div>`;
-    }).join("")}
-  </div>`;
+  listDiv.innerHTML = filtered.map(item => renderItemCard(item)).join('');
 }
 
-function renderApp() {
-  renderStats();
-  renderTabs();
-  renderList();
+/**
+ * رسم بطاقة العنصر الواحد
+ */
+function renderItemCard(item) {
+  const isWird = WIRD_SET.has(item._status);
+  const isDone = appState.completedWirds.has(item.id);
+  const diff = getDiffDays(item.date);
+  const isOverdue = item._status === 'OVERDUE';
+  
+  let sinceText = "";
+  if (isWird) {
+    if (diff === 0) sinceText = "(اليوم)";
+    else if (diff > 0) sinceText = `(منذ ${diff} يوم)`;
+  }
+
+  const nextDays = getNextReviewDays(item, diff);
+  const nextReviewText = (!isWird && nextDays !== null) ? `<span>🔄 بعد ${nextDays} يوم</span>` : "";
+  const hasNote = item.note && item.note.trim().length > 0;
+
+  // ألوان وتنسيقات خاصة للحالات المتجاوزة والمكتملة
+  const overdueStyle = isOverdue ? 'border-right: 4px solid var(--s-late); background-color: #fff9f9;' : '';
+  const badgeStyle = isOverdue ? 'background-color: var(--s-late); color: white; border: none;' : '';
+  const titleStyle = isDone ? 'text-decoration: line-through; opacity: 0.5;' : '';
+
+  return `
+    <div class="item-card ${isDone ? 'completed' : ''}" style="${overdueStyle}">
+      ${hasNote ? '<div class="note-indicator" title="توجد ملاحظات"></div>' : ''}
+      <div class="card-main" onclick="openEditSheet('${item.id}')">
+        <div class="card-header">
+          <div class="card-title" style="${titleStyle}">${item.content}</div>
+          <div class="status-badge badge-${item._status}" style="${badgeStyle}">
+            ${STATUS_AR[item._status] || item._status}
+          </div>
+        </div>
+        <div class="card-meta">
+          <span>📅 ${item.date} ${sinceText}</span> 
+          <span>📄 ${item.pages} ص</span>
+          ${nextReviewText}
+        </div>
+      </div>
+      <div class="card-actions">
+        ${isWird ? `
+          <input type="checkbox" class="wird-checkbox" 
+            ${isDone ? 'checked' : ''} 
+            onchange="toggleWird(this, '${item.id}')">
+        ` : '<div style="width:24px;"></div>'}
+      </div>
+    </div>
+  `;
 }
