@@ -14,27 +14,30 @@ async function renderPathTab() {
     const container = document.getElementById('mainContent');
     if (!container) return;
 
-    // جلب البيانات من IndexedDB (نفس المصدر الرئيسي للتطبيق)
+    // 1. جلب البيانات من IndexedDB
     const items = await getItems();
     
-    // فلترة العناصر التي تنتمي للمسارات فقط (بناءً على وجود خاصية المسار أو نوع معين)
-    // هنا سنفترض أن أي عنصر يحمل وسم 'path' أو يتم تمييزه بنظام المسارات
+    // 2. فلترة العناصر التي تنتمي للمسارات فقط
     const pathItems = items.filter(item => item.isPathItem === true);
 
     let currentCardsHTML = '';
     let spacedCardsHTML = '';
     
+    // 3. تحديد تاريخ اليوم بناءً على حالة التطبيق
     const todayStr = appState.currentDateStr;
     const today = new Date(todayStr).setHours(0,0,0,0);
 
+    // 4. بناء البطاقات
     pathItems.forEach(item => {
         const start = new Date(item.date).setHours(0,0,0,0);
+        // حساب الأيام المنقضية بدقة
         const daysPassed = Math.round((today - start) / (1000 * 60 * 60 * 24));
         
         let totalRequired = 0;
         let isSpaced = false;
         let shouldShow = false;
 
+        // تحديد ما إذا كان العنصر مطلوباً اليوم والعدد المطلوب
         if (daysPassed >= 0 && daysPassed <= 7) {
             totalRequired = REPETITION_SCHEDULE[daysPassed];
             shouldShow = true;
@@ -44,20 +47,26 @@ async function renderPathTab() {
             isSpaced = true;
         }
 
+        // رسم البطاقة إذا كانت مطلوبة
         if (shouldShow) {
             const doneCount = (item.pathProgress && item.pathProgress[todayStr]) ? item.pathProgress[todayStr] : 0;
             const remaining = totalRequired - doneCount;
             const isNew = daysPassed === 0;
 
             const cardHTML = `
-                <div class="item-card ${isNew ? 'is-new-path' : ''} ${isSpaced ? 'is-spaced-path' : ''}">
+                <div class="item-card path-card ${isNew ? 'is-new-path' : ''} ${isSpaced ? 'is-spaced-path' : ''}" style="position: relative;">
+                    <button class="btn-delete-path" 
+                            onclick="handleDeletePath('${item.id}')" 
+                            title="حذف من المسار"
+                            style="position: absolute; top: 5px; left: 8px; background: none; border: none; color: #888; cursor: pointer; font-size: 1.2rem; font-weight: bold; padding: 0; line-height: 1; z-index: 10;">
+                        ×
+                    </button>
+
                     <div class="card-main">
-                        <div class="card-header">
-                            <div class="card-title">
+                        <div class="card-header" style="padding-left: 25px;"> <div class="card-title">
                                 <h3>${item.content}</h3>
                                 <div class="badge-mini">${isNew ? 'حفظ جديد' : 'اليوم ' + daysPassed}</div>
                             </div>
-                            <button class="btn-del-mini" onclick="handleDeletePath('${item.id}')">×</button>
                         </div>
                         <div class="path-counter-wrapper">
                             <div class="counter-btns">
@@ -77,6 +86,7 @@ async function renderPathTab() {
         }
     });
 
+    // 5. حقن المحتوى في الصفحة
     container.innerHTML = `
         <div class="path-section">
             <div class="path-header-actions">
@@ -114,7 +124,7 @@ async function updatePathCount(id, step, max) {
         item.pathProgress[todayStr] = newValue;
         await putItem(item); // حفظ في IndexedDB
         renderPathTab(); // إعادة رسم التبويب
-        showToast("تم تحديث التقدم");
+        if(typeof showToast === 'function') showToast("تم تحديث التقدم");
     }
 }
 
@@ -122,20 +132,22 @@ async function updatePathCount(id, step, max) {
  * حذف عنصر من المسار
  */
 async function handleDeletePath(id) {
-    if (confirm("هل تريد إزالة هذه الصفحة من المسارات؟")) {
-        await deleteItem(id);
-        renderPathTab();
-        showToast("تم الحذف");
+    if (confirm("هل تريد إزالة هذه الصفحة من المسارات نهائياً؟")) {
+        await deleteItem(id); // الحذف من IndexedDB
+        renderPathTab(); // إعادة رسم الواجهة
+        if(typeof showToast === 'function') showToast("تم الحذف");
     }
 }
 
 /**
- * فتح واجهة إضافة مسار جديد (يمكنك ربطها بـ modals.js)
+ * فتح واجهة إضافة مسار جديد
  */
 function openAddPathSheet() {
-    // منطق فتح الشيت الخاص بالإضافة
-    // يمكن استدعاء openAddSheet() وتعديل الـ State ليكون العنصر الجديد مخصص للمسارات
-    appState.editingId = null;
-    openSheet('addSheet');
-    // إضافة علامة مخفية أو وسام يحدد أن هذا العنصر 'isPathItem: true' عند الحفظ
+    if(typeof openSheet === 'function') {
+        appState.editingId = null;
+        // ملاحظة مبرمج: يجب التأكد أن دالة الحفظ في modals.js تضع tag 'isPathItem: true'
+        openSheet('addSheet'); 
+    } else {
+        alert("دالة فتح النموذج غير معرفة (openSheet)");
+    }
 }
